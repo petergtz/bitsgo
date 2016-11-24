@@ -105,9 +105,9 @@ func usesLocalBlobstore(config Config) bool {
 }
 
 type Blobstore interface {
-	Get(path string, responseWriter http.ResponseWriter)
-	Put(path string, src io.ReadSeeker, responseWriter http.ResponseWriter)
-	Exists(path string) (bool, error)
+	Get(path string) (statusCode int, body io.ReadCloser, header map[string][]string)
+	Put(path string, src io.ReadSeeker) (statusCode int, header map[string][]string)
+	Exists(path string) (statusCode int)
 }
 
 type SignURLHandler interface {

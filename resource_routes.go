@@ -137,7 +137,11 @@ func copyTo(blobstore Blobstore, zipFileEntry *zip.File, responseWriter http.Res
 	}
 	defer entryFileRead.Close()
 
-	blobstore.Put(sha, entryFileRead, responseWriter)
+	status, _ := blobstore.Put(sha, entryFileRead)
+	if status != http.StatusInternalServerError {
+		responseWriter.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func writeToFile(writer io.Writer, reader io.Reader) (sha string, e error) {
