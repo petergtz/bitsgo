@@ -1,4 +1,4 @@
-package main_test
+package routes_test
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"strings"
+	"testing"
 
 	"github.com/gorilla/mux"
 	. "github.com/onsi/ginkgo"
@@ -21,6 +22,12 @@ import (
 )
 
 //go:generate pegomock generate --use-experimental-model-gen --package main_test Blobstore
+
+func TestRoutes(t *testing.T) {
+	gomega.RegisterFailHandler(ginkgo.Fail)
+	pegomock.RegisterMockFailHandler(ginkgo.Fail)
+	ginkgo.RunSpecs(t, "Routes")
+}
 
 var _ = Describe("routes", func() {
 	Describe("/packages/{guid}", func() {

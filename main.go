@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -102,18 +101,4 @@ func usesLocalBlobstore(config Config) bool {
 	return config.Packages.BlobstoreType == "local" ||
 		config.Buildpacks.BlobstoreType == "local" ||
 		config.Droplets.BlobstoreType == "local"
-}
-
-type NotFoundError struct {
-	error
-}
-
-type Blobstore interface {
-	Get(path string) (body io.ReadCloser, redirectLocation string, err error)
-	Put(path string, src io.ReadSeeker) (redirectLocation string, err error)
-	Exists(path string) (bool, error)
-}
-
-type SignURLHandler interface {
-	Sign(responseWriter http.ResponseWriter, request *http.Request)
 }
