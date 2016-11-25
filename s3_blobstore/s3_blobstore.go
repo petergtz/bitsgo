@@ -1,8 +1,8 @@
 package s3_blobstore
 
 import (
+	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 
@@ -21,7 +21,7 @@ func NewS3LegacyBlobstore(bucket string, accessKeyID, secretAccessKey string) *S
 	}
 }
 
-func (blobstore *S3LegacyBlobStore) Get(path string) (statusCode int, body io.ReadCloser, header map[string][]string) {
+func (blobstore *S3LegacyBlobStore) Get(path string) (body io.ReadCloser, redirectLocation string, err error) {
 	request, _ := blobstore.s3Client.GetObjectRequest(&s3.GetObjectInput{
 		Bucket: &blobstore.bucket,
 		Key:    &path,
@@ -30,23 +30,22 @@ func (blobstore *S3LegacyBlobStore) Get(path string) (statusCode int, body io.Re
 	if e != nil {
 		panic(e)
 	}
-	return http.StatusFound, nil, map[string][]string{"Location": []string{signedURL}}
+	return nil, signedURL, nil
 }
 
-func (blobstore *S3LegacyBlobStore) Put(path string, src io.ReadSeeker) (statusCode int, header map[string][]string) {
+func (blobstore *S3LegacyBlobStore) Put(path string, src io.ReadSeeker) (redirectLocation string, err error) {
 	_, e := blobstore.s3Client.PutObject(&s3.PutObjectInput{
 		Bucket: &blobstore.bucket,
 		Key:    &path,
 		Body:   src,
 	})
 	if e != nil {
-		log.Println(e)
-		return http.StatusInternalServerError, make(map[string][]string)
+		return "", fmt.Errorf("TODO %v", e)
 	}
-	return http.StatusCreated, make(map[string][]string)
+	return "", nil
 }
 
-func (blobstore *S3LegacyBlobStore) Exists(path string) int {
+func (blobstore *S3LegacyBlobStore) Exists(path string) (bool, error) {
 	panic("TODO")
 }
 

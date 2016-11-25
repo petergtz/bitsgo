@@ -104,6 +104,10 @@ func usesLocalBlobstore(config Config) bool {
 		config.Droplets.BlobstoreType == "local"
 }
 
+type NotFoundError struct {
+	error
+}
+
 type Blobstore interface {
 	Get(path string) (body io.ReadCloser, redirectLocation string, err error)
 	Put(path string, src io.ReadSeeker) (redirectLocation string, err error)
