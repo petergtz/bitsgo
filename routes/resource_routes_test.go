@@ -2,7 +2,6 @@ package routes_test
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -12,12 +11,15 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo"
+	"github.com/onsi/gomega"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	"github.com/onsi/gomega/types"
-	. "github.com/petergtz/bitsgo"
 	"github.com/petergtz/bitsgo/httputil"
+	. "github.com/petergtz/bitsgo/routes"
+	"github.com/petergtz/pegomock"
 	. "github.com/petergtz/pegomock"
 )
 
@@ -58,9 +60,9 @@ func ItSupportsMethodsGetPutDeleteFor(routeName string, resourceType string, set
 	})
 
 	Context("Method GET", func() {
-		XIt("returns StatusNotFound when blobstore writes StatusNotFound", func() {
+		It("returns StatusNotFound when blobstore returns NotFoundError", func() {
 			When(func() { blobstore.Get(AnyString()) }).
-				ThenReturn(nil, "", fmt.Errorf("Not found"))
+				ThenReturn(nil, "", NewNotFoundError())
 
 			router.ServeHTTP(responseWriter, httptest.NewRequest("GET", "/"+routeName+"/theguid", nil))
 

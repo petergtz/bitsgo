@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/petergtz/bitsgo/local_blobstore"
 	"github.com/petergtz/bitsgo/pathsigner"
+	"github.com/petergtz/bitsgo/routes"
 	"github.com/petergtz/bitsgo/s3_blobstore"
 	"github.com/urfave/negroni"
 )
@@ -29,12 +30,12 @@ func main() {
 	dropletBlobstore, signDropletURLHandler := createPackageBlobstoreAndSignURLHandler(config.Droplets, config.PublicEndpoint, config.Port, config.Secret)
 	buildpackBlobstore, signBuildpackURLHandler := createPackageBlobstoreAndSignURLHandler(config.Buildpacks, config.PublicEndpoint, config.Port, config.Secret)
 
-	SetUpSignRoute(internalRouter, signPackageURLHandler, signDropletURLHandler, signBuildpackURLHandler)
+	routes.SetUpSignRoute(internalRouter, signPackageURLHandler, signDropletURLHandler, signBuildpackURLHandler)
 
-	SetUpPackageRoutes(internalRouter, packageBlobstore)
-	SetUpBuildpackRoutes(internalRouter, buildpackBlobstore)
-	SetUpDropletRoutes(internalRouter, dropletBlobstore)
-	SetUpBuildpackCacheRoutes(internalRouter, dropletBlobstore)
+	routes.SetUpPackageRoutes(internalRouter, packageBlobstore)
+	routes.SetUpBuildpackRoutes(internalRouter, buildpackBlobstore)
+	routes.SetUpDropletRoutes(internalRouter, dropletBlobstore)
+	routes.SetUpBuildpackCacheRoutes(internalRouter, dropletBlobstore)
 
 	if usesLocalBlobstore(config) {
 		publicRouter := mux.NewRouter()
@@ -43,14 +44,14 @@ func main() {
 			negroni.Wrap(publicRouter),
 		))
 		if config.Packages.BlobstoreType == "local" {
-			SetUpPackageRoutes(publicRouter, packageBlobstore)
+			routes.SetUpPackageRoutes(publicRouter, packageBlobstore)
 		}
 		if config.Buildpacks.BlobstoreType == "local" {
-			SetUpBuildpackRoutes(publicRouter, buildpackBlobstore)
+			routes.SetUpBuildpackRoutes(publicRouter, buildpackBlobstore)
 		}
 		if config.Droplets.BlobstoreType == "local" {
-			SetUpDropletRoutes(publicRouter, dropletBlobstore)
-			SetUpBuildpackCacheRoutes(publicRouter, dropletBlobstore)
+			routes.SetUpDropletRoutes(publicRouter, dropletBlobstore)
+			routes.SetUpBuildpackCacheRoutes(publicRouter, dropletBlobstore)
 		}
 	}
 
@@ -67,7 +68,7 @@ func main() {
 	log.Fatal(srv.ListenAndServe())
 }
 
-func createPackageBlobstoreAndSignURLHandler(blobstoreConfig BlobstoreConfig, publicEndpoint string, port int, secret string) (Blobstore, SignURLHandler) {
+func createPackageBlobstoreAndSignURLHandler(blobstoreConfig BlobstoreConfig, publicEndpoint string, port int, secret string) (routes.Blobstore, routes.SignURLHandler) {
 	switch blobstoreConfig.BlobstoreType {
 	case "local":
 		return local_blobstore.NewLocalBlobstore(blobstoreConfig.LocalConfig.PathPrefix),
@@ -88,13 +89,6 @@ func createPackageBlobstoreAndSignURLHandler(blobstoreConfig BlobstoreConfig, pu
 		log.Fatalf("blobstoreConfig is invalid. BlobstoreType missing.")
 		return nil, nil // satisfy compiler
 	}
-}
-
-func SetUpSignRoute(router *mux.Router,
-	signPackageURLHandler, signDropletURLHandler, signBuildpackURLHandler SignURLHandler) {
-	router.PathPrefix("/sign/packages").Methods("GET").HandlerFunc(signPackageURLHandler.Sign)
-	router.PathPrefix("/sign/droplets").Methods("GET").HandlerFunc(signDropletURLHandler.Sign)
-	router.PathPrefix("/sign/buildpacks").Methods("GET").HandlerFunc(signBuildpackURLHandler.Sign)
 }
 
 func usesLocalBlobstore(config Config) bool {

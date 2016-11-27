@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/petergtz/bitsgo/routes"
 )
 
 type LocalBlobstore struct {
@@ -30,9 +32,7 @@ func (blobstore *LocalBlobstore) Get(path string) (body io.ReadCloser, redirectL
 	file, e := os.Open(filepath.Join(blobstore.pathPrefix, path))
 
 	if os.IsNotExist(e) {
-		// TODO
-		// return nil, "", &NotFoundError{fmt.Errorf("NotFoundError")}
-		return nil, "", fmt.Errorf("NotFoundError")
+		return nil, "", routes.NewNotFoundError()
 	}
 	if e != nil {
 		return nil, "", fmt.Errorf("Error while opening file %v. Caused by: %v", path, e)

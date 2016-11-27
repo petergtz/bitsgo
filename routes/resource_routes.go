@@ -15,6 +15,20 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type NotFoundError struct {
+	error
+}
+
+func NewNotFoundError() *NotFoundError {
+	return &NotFoundError{fmt.Errorf("NotFoundError")}
+}
+
+type Blobstore interface {
+	Get(path string) (body io.ReadCloser, redirectLocation string, err error)
+	Put(path string, src io.ReadSeeker) (redirectLocation string, err error)
+	Exists(path string) (bool, error)
+}
+
 func SetUpAppStashRoutes(router *mux.Router, blobstore Blobstore) {
 	handler := &AppStashHandler{blobstore: blobstore}
 	router.Path("/app_stash/entries").Methods("POST").HandlerFunc(handler.PostEntries)
@@ -230,7 +244,7 @@ func (handler *ResourceHandler) Put(responseWriter http.ResponseWriter, request 
 func (handler *ResourceHandler) Get(responseWriter http.ResponseWriter, request *http.Request) {
 	body, redirectLocation, e := handler.blobstore.Get(pathFor(mux.Vars(request)["guid"]))
 	switch e.(type) {
-	case NotFoundError:
+	case *NotFoundError:
 		responseWriter.WriteHeader(http.StatusNotFound)
 		return
 	case error:
