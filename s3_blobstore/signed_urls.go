@@ -74,6 +74,7 @@ type S3BuildpackCacheSigner struct {
 }
 
 func (signer *S3BuildpackCacheSigner) Sign(resource string, method string) (signedURL string) {
+	resource = strings.Replace(resource, "/entries", "", 1)
 	var request *request.Request
 	switch strings.ToLower(method) {
 	case "put":

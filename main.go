@@ -86,9 +86,10 @@ func main() {
 			newLogger(),
 			negroni.Wrap(rootRouter),
 		),
-		Addr:         fmt.Sprintf("0.0.0.0:%v", config.Port),
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
+		Addr: fmt.Sprintf("0.0.0.0:%v", config.Port),
+		// TODO possibly remove timeouts completely?
+		WriteTimeout: 5 * time.Minute,
+		ReadTimeout:  5 * time.Minute,
 	}
 
 	log.Fatal(srv.ListenAndServe())
