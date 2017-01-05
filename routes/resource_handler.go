@@ -191,8 +191,10 @@ func writeResponseBasedOnError(responseWriter http.ResponseWriter, e error) {
 }
 
 func redirect(responseWriter http.ResponseWriter, redirectLocation string) {
-	responseWriter.WriteHeader(http.StatusFound)
+	// TODO this should actually be logged as part of the middleware, so that it is easier to map it to a specific request
+	log.Printf("Location: %v", redirectLocation)
 	responseWriter.Header().Set("Location", redirectLocation)
+	responseWriter.WriteHeader(http.StatusFound)
 }
 
 func internalServerError(responseWriter http.ResponseWriter, e error) {

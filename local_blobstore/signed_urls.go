@@ -13,6 +13,8 @@ type SignLocalUrlHandler struct {
 	DelegateEndpoint string
 }
 
+// TODO this probably does not handle paths correctly. See S3 implementation to see how it should work
+
 func (handler *SignLocalUrlHandler) Sign(responseWriter http.ResponseWriter, request *http.Request) {
 	signPath := strings.Replace(request.URL.Path, "/sign", "", 1)
 	fmt.Fprintf(responseWriter, "%s%s", handler.DelegateEndpoint, handler.Signer.Sign(signPath))

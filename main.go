@@ -48,7 +48,7 @@ func main() {
 	if e != nil {
 		log.Fatalf("Public endpoint invalid: %v", e)
 	}
-	appStashBlobstore, _ := createBlobstoreAndSignURLHandler(config.AppStash, publicEndpoint.Host, config.Port, config.Secret)
+	appStashBlobstore := createAppStashBlobstore(config.AppStash)
 	packageBlobstore, signPackageURLHandler := createBlobstoreAndSignURLHandler(config.Packages, publicEndpoint.Host, config.Port, config.Secret)
 	dropletBlobstore, signDropletURLHandler := createBlobstoreAndSignURLHandler(config.Droplets, publicEndpoint.Host, config.Port, config.Secret)
 	buildpackBlobstore, signBuildpackURLHandler := createBlobstoreAndSignURLHandler(config.Buildpacks, publicEndpoint.Host, config.Port, config.Secret)
@@ -95,14 +95,14 @@ func main() {
 
 func createBlobstoreAndSignURLHandler(blobstoreConfig BlobstoreConfig, publicHost string, port int, secret string) (routes.Blobstore, routes.SignURLHandler) {
 	switch blobstoreConfig.BlobstoreType {
-	case "local":
+	case "local", "LOCAL":
 		fmt.Println("Creating local blobstore", "path prefix:", blobstoreConfig.LocalConfig.PathPrefix)
 		return local_blobstore.NewLocalBlobstore(blobstoreConfig.LocalConfig.PathPrefix),
 			&local_blobstore.SignLocalUrlHandler{
 				DelegateEndpoint: fmt.Sprintf("http://%v:%v", publicHost, port),
 				Signer:           &pathsigner.PathSigner{secret},
 			}
-	case "s3":
+	case "s3", "S3", "AWS", "aws":
 		return s3_blobstore.NewS3LegacyBlobstore(
 				blobstoreConfig.S3Config.Bucket,
 				blobstoreConfig.S3Config.AccessKeyID,
@@ -114,6 +114,23 @@ func createBlobstoreAndSignURLHandler(blobstoreConfig BlobstoreConfig, publicHos
 	default:
 		log.Fatalf("blobstoreConfig is invalid. BlobstoreType missing.")
 		return nil, nil // satisfy compiler
+	}
+}
+
+func createAppStashBlobstore(blobstoreConfig BlobstoreConfig) routes.Blobstore {
+	switch blobstoreConfig.BlobstoreType {
+	case "local", "LOCAL":
+		fmt.Println("Creating local blobstore", "path prefix:", blobstoreConfig.LocalConfig.PathPrefix)
+		return local_blobstore.NewLocalBlobstore(blobstoreConfig.LocalConfig.PathPrefix)
+
+	case "s3", "S3", "AWS", "aws":
+		return s3_blobstore.NewS3NoRedirectBlobStore(
+			blobstoreConfig.S3Config.Bucket,
+			blobstoreConfig.S3Config.AccessKeyID,
+			blobstoreConfig.S3Config.SecretAccessKey)
+	default:
+		log.Fatalf("blobstoreConfig is invalid. BlobstoreType missing.")
+		return nil // satisfy compiler
 	}
 }
 
