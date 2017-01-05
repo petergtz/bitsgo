@@ -15,9 +15,9 @@ type S3LegacyBlobStore struct {
 	bucket   string
 }
 
-func NewS3LegacyBlobstore(bucket string, accessKeyID, secretAccessKey string) *S3LegacyBlobStore {
+func NewS3LegacyBlobstore(bucket, accessKeyID, secretAccessKey, region string) *S3LegacyBlobStore {
 	return &S3LegacyBlobStore{
-		s3Client: newS3Client(DefaultS3Region, accessKeyID, secretAccessKey),
+		s3Client: newS3Client(region, accessKeyID, secretAccessKey),
 		bucket:   bucket,
 	}
 }
@@ -78,9 +78,9 @@ type S3PureRedirectBlobStore struct {
 	bucket   string
 }
 
-func NewS3PureRedirectBlobstore(bucket string, accessKeyID, secretAccessKey string) *S3PureRedirectBlobStore {
+func NewS3PureRedirectBlobstore(bucket, accessKeyID, secretAccessKey, region string) *S3PureRedirectBlobStore {
 	return &S3PureRedirectBlobStore{
-		s3Client: newS3Client(DefaultS3Region, accessKeyID, secretAccessKey),
+		s3Client: newS3Client(region, accessKeyID, secretAccessKey),
 		bucket:   bucket,
 	}
 }
@@ -125,9 +125,9 @@ type S3NoRedirectBlobStore struct {
 	bucket   string
 }
 
-func NewS3NoRedirectBlobStore(bucket string, accessKeyID, secretAccessKey string) *S3NoRedirectBlobStore {
+func NewS3NoRedirectBlobStore(bucket, accessKeyID, secretAccessKey, region string) *S3NoRedirectBlobStore {
 	return &S3NoRedirectBlobStore{
-		s3Client: newS3Client(DefaultS3Region, accessKeyID, secretAccessKey),
+		s3Client: newS3Client(region, accessKeyID, secretAccessKey),
 		bucket:   bucket,
 	}
 }

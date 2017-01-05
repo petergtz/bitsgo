@@ -3,7 +3,7 @@ package s3_blobstore
 import (
 	"fmt"
 	"log"
-	"net/http"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -11,11 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/gorilla/mux"
 )
-
-// const DefaultS3Region = "us-east-1"
-const DefaultS3Region = "eu-west-1"
 
 func newS3Client(region string, accessKeyID string, secretAccessKey string) *s3.S3 {
 	session, e := session.NewSession(&aws.Config{
@@ -28,42 +24,80 @@ func newS3Client(region string, accessKeyID string, secretAccessKey string) *s3.
 	return s3.New(session)
 }
 
-type SignS3UrlHandler struct {
-	s3Client *s3.S3
-	bucket   string
-}
-
-func NewSignS3UrlHandler(bucket string, accessKeyID, secretAccessKey string) *SignS3UrlHandler {
-	return &SignS3UrlHandler{
-		s3Client: newS3Client(DefaultS3Region, accessKeyID, secretAccessKey),
+func NewS3ResourceSigner(bucket string, accessKeyID, secretAccessKey, region string) *S3ResourceSigner {
+	return &S3ResourceSigner{
+		s3Client: newS3Client(region, accessKeyID, secretAccessKey),
 		bucket:   bucket,
 	}
 }
 
-func (handler *SignS3UrlHandler) Sign(responseWriter http.ResponseWriter, r *http.Request) {
+type S3ResourceSigner struct {
+	s3Client *s3.S3
+	bucket   string
+}
+
+func (signer *S3ResourceSigner) Sign(resource string, method string) (signedURL string) {
 	var request *request.Request
-	if r.URL.Query().Get("verb") == "put" {
-		request, _ = handler.s3Client.PutObjectRequest(&s3.PutObjectInput{
-			Bucket: aws.String(handler.bucket),
-			// TODO this shouldn't use mux.Vars directly. Instead, this should be refactored.
-			Key: aws.String(pathFor(mux.Vars(r)["guid"])),
+	switch strings.ToLower(method) {
+	case "put":
+		request, _ = signer.s3Client.PutObjectRequest(&s3.PutObjectInput{
+			Bucket: aws.String(signer.bucket),
+			Key:    aws.String(pathFor(resource)),
 		})
-	} else {
-		request, _ = handler.s3Client.GetObjectRequest(&s3.GetObjectInput{
-			Bucket: aws.String(handler.bucket),
-			Key:    aws.String(pathFor(mux.Vars(r)["guid"])),
+	case "get":
+		request, _ = signer.s3Client.GetObjectRequest(&s3.GetObjectInput{
+			Bucket: aws.String(signer.bucket),
+			Key:    aws.String(pathFor(resource)),
 		})
+	default:
+		panic("The only supported methods are 'put' and 'get'")
 	}
 	// TODO what expiration duration should we use?
 	signedURL, e := request.Presign(time.Hour)
 	if e != nil {
 		panic(e)
 	}
-	log.Printf("Signed URL (verb=%v): %v", r.URL.Query().Get("verb"), signedURL)
-	fmt.Fprint(responseWriter, signedURL)
+	log.Printf("Signed URL (verb=%v): %v", method, signedURL)
+	return
 }
 
-// TODO this is a duplicate from resource_handler.go and should be refactored.
+func NewS3BuildpackCacheSigner(bucket string, accessKeyID, secretAccessKey, region string) *S3BuildpackCacheSigner {
+	return &S3BuildpackCacheSigner{
+		s3Client: newS3Client(region, accessKeyID, secretAccessKey),
+		bucket:   bucket,
+	}
+}
+
+type S3BuildpackCacheSigner struct {
+	s3Client *s3.S3
+	bucket   string
+}
+
+func (signer *S3BuildpackCacheSigner) Sign(resource string, method string) (signedURL string) {
+	var request *request.Request
+	switch strings.ToLower(method) {
+	case "put":
+		request, _ = signer.s3Client.PutObjectRequest(&s3.PutObjectInput{
+			Bucket: aws.String(signer.bucket),
+			Key:    aws.String(resource),
+		})
+	case "get":
+		request, _ = signer.s3Client.GetObjectRequest(&s3.GetObjectInput{
+			Bucket: aws.String(signer.bucket),
+			Key:    aws.String(resource),
+		})
+	default:
+		panic("The only supported methods are 'put' and 'get'")
+	}
+	// TODO what expiration duration should we use?
+	signedURL, e := request.Presign(time.Hour)
+	if e != nil {
+		panic(e)
+	}
+	log.Printf("Signed URL (verb=%v): %v", method, signedURL)
+	return
+}
+
 func pathFor(identifier string) string {
 	return fmt.Sprintf("/%s/%s/%s", identifier[0:2], identifier[2:4], identifier)
 }

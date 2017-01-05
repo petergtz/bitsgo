@@ -49,12 +49,13 @@ func main() {
 		log.Fatalf("Public endpoint invalid: %v", e)
 	}
 	appStashBlobstore := createAppStashBlobstore(config.AppStash)
-	packageBlobstore, signPackageURLHandler := createBlobstoreAndSignURLHandler(config.Packages, publicEndpoint.Host, config.Port, config.Secret)
-	dropletBlobstore, signDropletURLHandler := createBlobstoreAndSignURLHandler(config.Droplets, publicEndpoint.Host, config.Port, config.Secret)
-	buildpackBlobstore, signBuildpackURLHandler := createBlobstoreAndSignURLHandler(config.Buildpacks, publicEndpoint.Host, config.Port, config.Secret)
+	packageBlobstore, signPackageURLHandler := createBlobstoreAndSignURLHandler(config.Packages, publicEndpoint.Host, config.Port, config.Secret, "packages")
+	dropletBlobstore, signDropletURLHandler := createBlobstoreAndSignURLHandler(config.Droplets, publicEndpoint.Host, config.Port, config.Secret, "droplets")
+	buildpackBlobstore, signBuildpackURLHandler := createBlobstoreAndSignURLHandler(config.Buildpacks, publicEndpoint.Host, config.Port, config.Secret, "buildpacks")
+	signBuildpackCacheURLHandler := createBuildpackCacheSignURLHandler(config.Droplets, publicEndpoint.Host, config.Port, config.Secret, "droplets")
 
 	routes.SetUpSignRoute(internalRouter, &basic_auth_middleware.BasicAuthMiddleware{config.SigningUsers[0].Username, config.SigningUsers[0].Password},
-		signPackageURLHandler, signDropletURLHandler, signBuildpackURLHandler)
+		signPackageURLHandler, signDropletURLHandler, signBuildpackURLHandler, signBuildpackCacheURLHandler)
 
 	routes.SetUpAppStashRoutes(internalRouter, appStashBlobstore)
 	routes.SetUpPackageRoutes(internalRouter, packageBlobstore)
@@ -93,27 +94,59 @@ func main() {
 	log.Fatal(srv.ListenAndServe())
 }
 
-func createBlobstoreAndSignURLHandler(blobstoreConfig BlobstoreConfig, publicHost string, port int, secret string) (routes.Blobstore, routes.SignURLHandler) {
+func createBlobstoreAndSignURLHandler(blobstoreConfig BlobstoreConfig, publicHost string, port int, secret string, resourceType string) (routes.Blobstore, *routes.SignResourceHandler) {
 	switch blobstoreConfig.BlobstoreType {
 	case "local", "LOCAL":
 		fmt.Println("Creating local blobstore", "path prefix:", blobstoreConfig.LocalConfig.PathPrefix)
 		return local_blobstore.NewLocalBlobstore(blobstoreConfig.LocalConfig.PathPrefix),
-			&local_blobstore.SignLocalUrlHandler{
-				DelegateEndpoint: fmt.Sprintf("http://%v:%v", publicHost, port),
-				Signer:           &pathsigner.PathSigner{secret},
-			}
+			routes.NewSignResourceHandler(
+				&local_blobstore.LocalResourceSigner{
+					DelegateEndpoint:   fmt.Sprintf("http://%v:%v", publicHost, port),
+					Signer:             &pathsigner.PathSigner{secret},
+					ResourcePathPrefix: "/" + resourceType + "/",
+				},
+			)
 	case "s3", "S3", "AWS", "aws":
 		return s3_blobstore.NewS3LegacyBlobstore(
 				blobstoreConfig.S3Config.Bucket,
 				blobstoreConfig.S3Config.AccessKeyID,
-				blobstoreConfig.S3Config.SecretAccessKey),
-			s3_blobstore.NewSignS3UrlHandler(
-				blobstoreConfig.S3Config.Bucket,
-				blobstoreConfig.S3Config.AccessKeyID,
-				blobstoreConfig.S3Config.SecretAccessKey)
+				blobstoreConfig.S3Config.SecretAccessKey,
+				blobstoreConfig.S3Config.Region),
+			routes.NewSignResourceHandler(
+				s3_blobstore.NewS3ResourceSigner(
+					blobstoreConfig.S3Config.Bucket,
+					blobstoreConfig.S3Config.AccessKeyID,
+					blobstoreConfig.S3Config.SecretAccessKey,
+					blobstoreConfig.S3Config.Region),
+			)
 	default:
 		log.Fatalf("blobstoreConfig is invalid. BlobstoreType missing.")
 		return nil, nil // satisfy compiler
+	}
+}
+
+func createBuildpackCacheSignURLHandler(blobstoreConfig BlobstoreConfig, publicHost string, port int, secret string, resourceType string) *routes.SignResourceHandler {
+	switch blobstoreConfig.BlobstoreType {
+	case "local", "LOCAL":
+		fmt.Println("Creating local blobstore", "path prefix:", blobstoreConfig.LocalConfig.PathPrefix)
+		return routes.NewSignResourceHandler(
+			&local_blobstore.LocalResourceSigner{
+				DelegateEndpoint:   fmt.Sprintf("http://%v:%v", publicHost, port),
+				Signer:             &pathsigner.PathSigner{secret},
+				ResourcePathPrefix: "/" + resourceType + "/",
+			},
+		)
+	case "s3", "S3", "AWS", "aws":
+		return routes.NewSignResourceHandler(
+			s3_blobstore.NewS3BuildpackCacheSigner(
+				blobstoreConfig.S3Config.Bucket,
+				blobstoreConfig.S3Config.AccessKeyID,
+				blobstoreConfig.S3Config.SecretAccessKey,
+				blobstoreConfig.S3Config.Region),
+		)
+	default:
+		log.Fatalf("blobstoreConfig is invalid. BlobstoreType missing.")
+		return nil // satisfy compiler
 	}
 }
 
@@ -127,7 +160,8 @@ func createAppStashBlobstore(blobstoreConfig BlobstoreConfig) routes.Blobstore {
 		return s3_blobstore.NewS3NoRedirectBlobStore(
 			blobstoreConfig.S3Config.Bucket,
 			blobstoreConfig.S3Config.AccessKeyID,
-			blobstoreConfig.S3Config.SecretAccessKey)
+			blobstoreConfig.S3Config.SecretAccessKey,
+			blobstoreConfig.S3Config.Region)
 	default:
 		log.Fatalf("blobstoreConfig is invalid. BlobstoreType missing.")
 		return nil // satisfy compiler
