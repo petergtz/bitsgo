@@ -95,7 +95,7 @@ func (handler *ResourceHandler) Delete(responseWriter http.ResponseWriter, reque
 }
 
 func (handler *ResourceHandler) DeleteDir(responseWriter http.ResponseWriter, request *http.Request) {
-	panic("DeleteDir nt implemented yet")
+	handler.blobstore.DeletePrefix(mux.Vars(request)["identifier"])
 }
 
 func writeResponseBasedOnError(responseWriter http.ResponseWriter, e error) {
