@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/uber-go/zap"
+	"github.com/petergtz/bitsgo/logger"
 )
 
 type ResourceHandler struct {
@@ -18,17 +18,13 @@ type ResourceHandler struct {
 	resourceType string
 }
 
-var (
-	logger = zap.New(zap.NewTextEncoder(), zap.DebugLevel, zap.AddCaller())
-)
-
 func (handler *ResourceHandler) Put(responseWriter http.ResponseWriter, request *http.Request) {
 	var (
 		redirectLocation string
 		e                error
 	)
 	if strings.Contains(request.Header.Get("Content-Type"), "multipart/form-data") {
-		logger.Info("Multipart upload")
+		logger.Log.Info("Multipart upload")
 		file, _, e := request.FormFile(handler.resourceType)
 		if e != nil {
 			badRequest(responseWriter, "Could not retrieve '%s' form parameter", handler.resourceType)
@@ -38,7 +34,7 @@ func (handler *ResourceHandler) Put(responseWriter http.ResponseWriter, request 
 
 		redirectLocation, e = handler.blobstore.Put(mux.Vars(request)["identifier"], file)
 	} else {
-		logger.Info("Copy source guid")
+		logger.Log.Info("Copy source guid")
 		redirectLocation, e = handler.copySourceGuid(request.Body, mux.Vars(request)["identifier"], responseWriter)
 	}
 

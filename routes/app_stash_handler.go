@@ -13,7 +13,9 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/petergtz/bitsgo/logger"
 	"github.com/pkg/errors"
+	"github.com/uber-go/zap"
 )
 
 type AppStashHandler struct {
@@ -102,7 +104,9 @@ func (handler *AppStashHandler) PostEntries(responseWriter http.ResponseWriter, 
 			internalServerError(responseWriter, e)
 			return
 		}
-		fmt.Println(zipFileEntry.FileInfo().Mode().String())
+		logger.Log.Debug("Filemode in zip File Entry",
+			zap.String("filemode", zipFileEntry.FileInfo().Mode().String()),
+		)
 		if e != nil {
 			internalServerError(responseWriter, e)
 			return
