@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/petergtz/bitsgo/logger"
+	"github.com/uber-go/zap"
 )
 
 type ResourceHandler struct {
@@ -156,13 +156,13 @@ func writeResponseBasedOnError(responseWriter http.ResponseWriter, e error) {
 
 func redirect(responseWriter http.ResponseWriter, redirectLocation string) {
 	// TODO this should actually be logged as part of the middleware, so that it is easier to map it to a specific request
-	log.Printf("Location: %v", redirectLocation)
+	logger.Log.Debug("Redirect", zap.String("Location", redirectLocation))
 	responseWriter.Header().Set("Location", redirectLocation)
 	responseWriter.WriteHeader(http.StatusFound)
 }
 
 func internalServerError(responseWriter http.ResponseWriter, e error) {
-	log.Printf("Internal Server Error. Caused by: %+v", e)
+	logger.Log.Error("Internal Server Error.", zap.String("error", fmt.Sprintf("%+v", e)))
 	responseWriter.WriteHeader(http.StatusInternalServerError)
 }
 
