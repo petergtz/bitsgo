@@ -1,5 +1,5 @@
-hash: 7661a444c7f6ed037c544674efa799210ab0c1eb36a230a07484742965c5f0ef
-updated: 2017-01-29T23:52:43.597662276+01:00
+hash: f5a3042ae56f4aec64e8adef9ea353ecf927300ef2d8e673e983049cd9f66023
+updated: 2017-01-31T10:56:50.638936377+01:00
 imports:
 - name: code.cloudfoundry.org/bytefmt
   version: b12c1522f4cbb5f35861bd5dd2c39a4fa996441a
@@ -67,6 +67,8 @@ imports:
   - types
 - name: github.com/pkg/errors
   version: 248dadf4e9068a0b3e79f02ed0a610d935de5302
+- name: github.com/spf13/afero
+  version: 72b31426848c6ef12a7a8e216708cb0d1530f074
 - name: github.com/uber-go/atomic
   version: 3b8db5e93c4c02efbc313e17b2e796b0914a01fb
 - name: github.com/uber-go/zap
