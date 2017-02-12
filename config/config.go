@@ -54,9 +54,10 @@ func (config *Config) MaxBodySizeBytes() uint64 {
 }
 
 type BlobstoreConfig struct {
-	BlobstoreType string                `yaml:"blobstore_type"`
-	LocalConfig   *LocalBlobstoreConfig `yaml:"local_config"`
-	S3Config      *S3BlobstoreConfig    `yaml:"s3_config"`
+	BlobstoreType string                 `yaml:"blobstore_type"`
+	LocalConfig   *LocalBlobstoreConfig  `yaml:"local_config"`
+	S3Config      *S3BlobstoreConfig     `yaml:"s3_config"`
+	WebdavConfig  *WebdavBlobstoreConfig `yaml:"webdav_config"`
 }
 
 type LocalBlobstoreConfig struct {
@@ -68,6 +69,10 @@ type S3BlobstoreConfig struct {
 	AccessKeyID     string `yaml:"access_key_id"`
 	SecretAccessKey string `yaml:"secret_access_key"`
 	Region          string
+}
+
+type WebdavBlobstoreConfig struct {
+	Endpoint string
 }
 
 type Credential struct {
