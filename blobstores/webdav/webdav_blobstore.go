@@ -5,8 +5,9 @@ import (
 	"io"
 	"net/http"
 
+	"bytes"
+
 	"github.com/petergtz/bitsgo/config"
-	"github.com/petergtz/bitsgo/httputil"
 	"github.com/petergtz/bitsgo/logger"
 	"github.com/petergtz/bitsgo/routes"
 	"github.com/pkg/errors"
@@ -88,7 +89,10 @@ func (blobstore *Blobstore) Put(path string, src io.ReadSeeker) (redirectLocatio
 }
 
 func (blobstore *Blobstore) Copy(src, dest string) (redirectLocation string, err error) {
-	logger.Log.Debug("Copy", zap.String("bla", blobstore.webdavEndpoint+"/admin/"+src))
+	_, e := blobstore.Put(dest, bytes.NewReader(nil))
+	if e != nil {
+		return "", e
+	}
 	request, e := http.NewRequest("COPY", blobstore.webdavEndpoint+"/admin/"+src, nil)
 	if e != nil {
 		return "", errors.Wrapf(e, "TODO")
@@ -99,6 +103,9 @@ func (blobstore *Blobstore) Copy(src, dest string) (redirectLocation string, err
 	response, e := blobstore.httpClient.Do(request)
 	if e != nil {
 		return "", errors.Wrapf(e, "TODO")
+	}
+	if response.StatusCode == http.StatusNotFound {
+		return "", routes.NewNotFoundError()
 	}
 	// TODO improve error handling. It should provide a better error to the caller, so that the caller can provide
 	//      a better response to its caller
@@ -199,20 +206,13 @@ func (blobstore *NoRedirectBlobstore) Get(path string) (body io.ReadCloser, redi
 	return response.Body, "", nil
 }
 
-// func (blobstore *Blobstore) requestSignedWebdavUrl(path string) (string, error) {
-// 	blobstore.httpClient.Get(filepath.Join(blobstore.webdavEndpoint, "sign"))
-// 	return "", nil
-// }
-
 func (blobstore *NoRedirectBlobstore) Head(path string) (redirectLocation string, err error) {
 	_, redirectLocation, e := blobstore.Get(path)
 	return redirectLocation, e
 }
 
 func (blobstore *NoRedirectBlobstore) Put(path string, src io.ReadSeeker) (redirectLocation string, err error) {
-	request, e := httputil.NewPutRequest(blobstore.webdavEndpoint+"/admin/"+path, map[string]map[string]io.Reader{
-		"dummy": map[string]io.Reader{"dummyfilename": src},
-	})
+	request, e := http.NewRequest("PUT", blobstore.webdavEndpoint+"/admin/"+path, src)
 	if e != nil {
 		return "", e
 	}
