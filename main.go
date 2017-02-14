@@ -140,7 +140,9 @@ func createBlobstoreAndSignURLHandler(blobstoreConfig config.BlobstoreConfig, pu
 	case "webdav":
 		log.Log.Info("Creating Webdav blobstore", zap.String("endpoint", blobstoreConfig.WebdavConfig.Endpoint))
 		return decorator.ForBlobstoreWithPathPartitioning(
-				webdav.NewBlobstore(blobstoreConfig.WebdavConfig.Endpoint)),
+				decorator.ForBlobstoreWithPathPrefixing(
+					webdav.NewBlobstore(blobstoreConfig.WebdavConfig.Endpoint),
+					resourceType+"/")),
 			routes.NewSignResourceHandler(
 				decorator.ForResourceSignerWithPathPartitioning(
 					webdav.NewWebdavResourceSigner(*blobstoreConfig.WebdavConfig)))
@@ -176,7 +178,7 @@ func createBuildpackCacheSignURLHandler(blobstoreConfig config.BlobstoreConfig, 
 		return decorator.ForBlobstoreWithPathPartitioning(
 				decorator.ForBlobstoreWithPathPrefixing(
 					webdav.NewBlobstore(blobstoreConfig.WebdavConfig.Endpoint),
-					"buildpack_cache/")),
+					resourceType+"/buildpack_cache/")),
 			routes.NewSignResourceHandler(
 				decorator.ForResourceSignerWithPathPartitioning(
 					decorator.DecorateWithPrefixingPathResourceSigner(
@@ -211,7 +213,9 @@ func createAppStashBlobstore(blobstoreConfig config.BlobstoreConfig) routes.Blob
 	case "webdav":
 		log.Log.Info("Creating webdav blobstore", zap.String("endpoint", blobstoreConfig.WebdavConfig.Endpoint))
 		return decorator.ForBlobstoreWithPathPartitioning(
-			webdav.NewBlobstore(blobstoreConfig.WebdavConfig.Endpoint))
+			decorator.ForBlobstoreWithPathPrefixing(
+				webdav.NewNoRedirectBlobstore(blobstoreConfig.WebdavConfig.Endpoint),
+				"app_stash/"))
 	default:
 		log.Log.Fatal("blobstoreConfig is invalid.", zap.String("blobstore-type", blobstoreConfig.BlobstoreType))
 		return nil // satisfy compiler

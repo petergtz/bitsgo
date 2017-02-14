@@ -93,7 +93,21 @@ func (handler *ResourceHandler) Delete(responseWriter http.ResponseWriter, reque
 }
 
 func (handler *ResourceHandler) DeleteDir(responseWriter http.ResponseWriter, request *http.Request) {
+	// exists, e := handler.blobstore.Exists(mux.Vars(request)["identifier"])
+	// if e != nil {
+	// 	internalServerError(responseWriter, e)
+	// 	return
+	// }
+	// if !exists {
+	// 	responseWriter.WriteHeader(http.StatusNoContent)
+	// 	return
+	// }
 	e := handler.blobstore.DeletePrefix(mux.Vars(request)["identifier"])
+	switch e.(type) {
+	case *NotFoundError:
+		responseWriter.WriteHeader(http.StatusNoContent)
+		return
+	}
 	writeResponseBasedOn("", e, responseWriter, http.StatusNoContent, emptyReader)
 }
 
