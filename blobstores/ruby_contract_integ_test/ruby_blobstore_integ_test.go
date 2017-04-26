@@ -71,7 +71,7 @@ var _ = Describe("Ruby Blobstore", func() {
 
 	Describe("S3NoRedirectBlobStore", func() {
 		BeforeEach(func() {
-			blobstore = NewBlobstore(testConfig.FogConnection, testConfig.ScriptDir)
+			blobstore = NewBlobstore(testConfig.FogConnection, testConfig.ScriptDir, testConfig.DirectoryKey)
 		})
 
 		It("can put and get a resource there", func() {
@@ -111,6 +111,7 @@ var _ = Describe("Ruby Blobstore", func() {
 			Expect(blobstore.Exists("two")).To(BeFalse())
 
 			redirectLocation, e := blobstore.PutOrRedirect("one", strings.NewReader("the file content"))
+			fmt.Println(e)
 			Expect(redirectLocation, e).To(BeEmpty())
 			redirectLocation, e = blobstore.PutOrRedirect("two", strings.NewReader("the file content"))
 			Expect(redirectLocation, e).To(BeEmpty())
@@ -148,7 +149,7 @@ var _ = Describe("Ruby Blobstore", func() {
 
 	Describe("S3PureRedirectBlobstore", func() {
 		It("can put and get a resource there", func() {
-			blobstore := NewBlobstore(testConfig.FogConnection, testConfig.ScriptDir)
+			blobstore := NewBlobstore(testConfig.FogConnection, testConfig.ScriptDir, testConfig.DirectoryKey)
 
 			redirectLocation, e := blobstore.HeadOrRedirectAsGet(filepath)
 			Expect(redirectLocation, e).NotTo(BeEmpty())

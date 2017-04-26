@@ -3,20 +3,21 @@
 require 'bundler'
 Bundler.require
 
-puts "Hello World"
 
-options =  ARGV[0]
-puts options
+options =  JSON.parse(ARGV[0], :symbolize_names => true)
+STDERR.puts options
 connection = Fog::Storage.new(options)
 command = ARGV[1]
+STDERR.puts "command: #{command}"
 
-path =  ARGV[2]
+directory_key = ARGV[2]
+path = ARGV[3]
 
 case command
 when "Exists"
     # connection.directories.get(directory_key, 'limit' => 1, max_keys: 1)
     # connection.directories.create(key: @directory_key, public: false)
-  connection.directories.get(directory_key, 'limit' => 1, max_keys: 1).files.head(key).nil?
+  puts !connection.directories.get(directory_key, 'limit' => 1, max_keys: 1).files.head(path).nil?
 else
   puts 'Unexpected command'
 end

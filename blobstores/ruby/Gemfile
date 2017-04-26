@@ -1,14 +1,14 @@
 source 'https://rubygems.org'
 
 gem 'rake'
-gem 'sinatra', '~> 1.4'
+# gem 'sinatra', '~> 1.4'
 gem 'fog'
 gem 'i18n'
 gem 'httpclient'
 gem 'steno'
 gem 'mime-types', '~> 2.6.2'
 gem 'activesupport'
-gem 'puma'
+# gem 'puma'
 gem 'cloudfront-signer'
 gem 'statsd-ruby'
 
