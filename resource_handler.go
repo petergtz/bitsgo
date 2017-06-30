@@ -17,11 +17,33 @@ type MetricsService interface {
 	SendTimingMetric(name string, duration time.Duration)
 }
 
+const (
+	StateReady            = "ready"
+	StateProcessingUpload = "processing_upload"
+	StateFailed           = "state_failed"
+)
+
+type ResourceStatus struct {
+	State  string
+	Sha1   string
+	Sha256 string
+	err    error
+}
+
+type Notifier interface {
+	Notify(identifier string, status ResourceStatus)
+}
+
+type noopNotifier struct{}
+
+func (notifier *noopNotifier) Notify(identifier string, status ResourceStatus) {}
+
 type ResourceHandler struct {
 	blobstore        Blobstore
 	resourceType     string
 	metricsService   MetricsService
 	maxBodySizeLimit uint64
+	notifier         Notifier
 }
 
 func NewResourceHandler(blobstore Blobstore, resourceType string, metricsService MetricsService, maxBodySizeLimit uint64) *ResourceHandler {
@@ -30,6 +52,17 @@ func NewResourceHandler(blobstore Blobstore, resourceType string, metricsService
 		resourceType:     resourceType,
 		metricsService:   metricsService,
 		maxBodySizeLimit: maxBodySizeLimit,
+		notifier:         new(noopNotifier),
+	}
+}
+
+func NewPackageHandler(blobstore Blobstore, notifier Notifier, metricsService MetricsService, maxBodySizeLimit uint64) *ResourceHandler {
+	return &ResourceHandler{
+		blobstore:        blobstore,
+		resourceType:     "package",
+		metricsService:   metricsService,
+		maxBodySizeLimit: maxBodySizeLimit,
+		notifier:         notifier,
 	}
 }
 
@@ -37,6 +70,9 @@ func (handler *ResourceHandler) Put(responseWriter http.ResponseWriter, request 
 	if !HandleBodySizeLimits(responseWriter, request, handler.maxBodySizeLimit) {
 		return
 	}
+
+	handler.notifier.Notify(params["identifier"], ResourceStatus{State: StateProcessingUpload})
+
 	if strings.Contains(request.Header.Get("Content-Type"), "multipart/form-data") {
 		logger.From(request).Debugw("Multipart upload")
 		handler.uploadMultipart(responseWriter, request, params["identifier"])
@@ -49,6 +85,7 @@ func (handler *ResourceHandler) Put(responseWriter http.ResponseWriter, request 
 func (handler *ResourceHandler) uploadMultipart(responseWriter http.ResponseWriter, request *http.Request, identifier string) {
 	file, _, e := request.FormFile(handler.resourceType)
 	if e != nil {
+		handler.notifier.Notify(identifier, ResourceStatus{State: StateFailed})
 		badRequest(responseWriter, "Could not retrieve '%s' form parameter", handler.resourceType)
 		return
 	}
@@ -57,6 +94,12 @@ func (handler *ResourceHandler) uploadMultipart(responseWriter http.ResponseWrit
 	startTime := time.Now()
 	e = handler.blobstore.Put(identifier, file)
 	handler.metricsService.SendTimingMetric(handler.resourceType+"-cp_to_blobstore-time", time.Since(startTime))
+
+	if e != nil {
+		handler.notifier.Notify(identifier, ResourceStatus{State: StateFailed, err: e})
+	} else {
+		handler.notifier.Notify(identifier, ResourceStatus{State: StateReady, Sha1: "", Sha256: ""})
+	}
 
 	writeResponseBasedOn("", e, responseWriter, http.StatusCreated, emptyReader)
 }
