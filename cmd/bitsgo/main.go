@@ -57,9 +57,6 @@ func main() {
 	buildpackCacheHandler := bitsgo.NewResourceHandler(buildpackCacheBlobstore, "buildpack_cache", metricsService, config.Droplets.MaxBodySizeBytes())
 
 	rootRouter := mux.NewRouter()
-	rootRouter.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusBadRequest)
-	})
 
 	internalRouter := mux.NewRouter()
 	rootRouter.Host(config.PrivateEndpointUrl().Host).Handler(internalRouter)
@@ -81,7 +78,12 @@ func main() {
 	routes.SetUpPackageRoutes(publicRouter, packageHandler)
 	routes.SetUpBuildpackRoutes(publicRouter, buildpackHandler)
 	routes.SetUpDropletRoutes(publicRouter, dropletHandler)
+	routes.SetUpDropletRoutePutNoMultipart(publicRouter, dropletHandler)
 	routes.SetUpBuildpackCacheRoutes(publicRouter, buildpackCacheHandler)
+
+	rootRouter.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	})
 
 	httpServer := &http.Server{
 		Handler: negroni.New(

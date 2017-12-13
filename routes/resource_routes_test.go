@@ -65,7 +65,7 @@ var _ = Describe("routes", func() {
 				Expect(responseWriter.Code).To(Equal(http.StatusNotFound))
 			})
 
-			It("returns StatusOK and fills body with contents from file located at the partitioned path", func() {
+			FIt("returns StatusOK and fills body with contents from file located at the partitioned path", func() {
 				blobstoreEntries["th/eg/theguid"] = []byte("thecontent")
 
 				router.ServeHTTP(responseWriter, httptest.NewRequest("GET", "/"+routeName+"/theguid", nil))
