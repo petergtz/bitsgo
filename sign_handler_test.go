@@ -1,6 +1,7 @@
 package bitsgo_test
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"time"
@@ -28,18 +29,19 @@ var _ = Describe("SignResourceHandler", func() {
 		request := httputil.NewRequest("GET", "/foo", nil).Build()
 
 		handler.Sign(recorder, request, map[string]string{"verb": "get", "resource": "bar"})
-		Expect(recorder.Code).To(Equal(200))
+		Expect(recorder.Code).To(Equal(http.StatusOK))
 		Expect(recorder.Body.String()).To(Equal("Some get signature"))
 	})
-	Context("missing method", func() {
+
+	Context("Invalid method", func() {
 		It("Responds with error code", func() {
 			recorder := httptest.NewRecorder()
 			handler := bitsgo.NewSignResourceHandler(getSigner, putSigner)
 			request := httputil.NewRequest("", "/does", nil).Build()
 
-			handler.Sign(recorder, request, map[string]string{"verb": "put", "resource": "foobar"})
-			Expect(recorder.Code).To(Not(Equal(200)))
-			Expect(recorder.Body.String()).To(Equal("Missing verb"))
+			handler.Sign(recorder, request, map[string]string{"verb": "something invalid", "resource": "foobar"})
+			Expect(recorder.Code).To(Equal(http.StatusBadRequest))
+			Expect(recorder.Body.String()).To(Equal("Invalid verb: something invalid"))
 		})
 	})
 
@@ -51,7 +53,7 @@ var _ = Describe("SignResourceHandler", func() {
 		request := httputil.NewRequest("PUT", "/bar", nil).Build()
 
 		handler.Sign(recorder, request, map[string]string{"verb": "put", "resource": "foobar"})
-		Expect(recorder.Code).To(Equal(200))
+		Expect(recorder.Code).To(Equal(http.StatusOK))
 		Expect(recorder.Body.String()).To(Equal("Some put signature"))
 	})
 })

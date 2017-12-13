@@ -35,7 +35,9 @@ func (handler *SignResourceHandler) Sign(responseWriter http.ResponseWriter, req
 	case "put":
 		signer = handler.putResourceSigner
 	default:
-		panic("Invalid method:" + method)
+		responseWriter.WriteHeader(http.StatusBadRequest)
+		responseWriter.Write([]byte("Invalid verb: " + method))
+		return
 	}
 
 	signature := signer.Sign(params["resource"], method, handler.clock.Now().Add(1*time.Hour))
