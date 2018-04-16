@@ -130,7 +130,13 @@ func basicAuthCredentialsFrom(configCredententials []config.Credential) (basicAu
 	return
 }
 
-func createBlobstoreAndSignURLHandler(blobstoreConfig config.BlobstoreConfig, publicEndpoint *url.URL, port int, secret string, resourceType string) (bitsgo.Blobstore, *bitsgo.SignResourceHandler) {
+func createBlobstoreAndSignURLHandler(
+	blobstoreConfig config.BlobstoreConfig,
+	publicEndpoint *url.URL,
+	port int,
+	secret string,
+	resourceType string,
+	metricsService bitsgo.MetricsService) (bitsgo.Blobstore, *bitsgo.SignResourceHandler) {
 	localResourceSigner := createLocalResourceSigner(publicEndpoint, port, secret, resourceType)
 	switch blobstoreConfig.BlobstoreType {
 	case config.Local:
@@ -141,7 +147,10 @@ func createBlobstoreAndSignURLHandler(blobstoreConfig config.BlobstoreConfig, pu
 	case config.AWS:
 		log.Log.Infow("Creating S3 blobstore", "bucket", blobstoreConfig.S3Config.Bucket)
 		return decorator.ForBlobstoreWithPathPartitioning(
-				s3.NewBlobstore(*blobstoreConfig.S3Config)),
+				decorator.ForBlobstoreWithMetricsEmitter(
+					s3.NewBlobstore(*blobstoreConfig.S3Config),
+					metricsService,
+					resourceType)),
 			bitsgo.NewSignResourceHandler(
 				decorator.ForResourceSignerWithPathPartitioning(
 					s3.NewBlobstore(*blobstoreConfig.S3Config)),
@@ -188,6 +197,10 @@ func createBlobstoreAndSignURLHandler(blobstoreConfig config.BlobstoreConfig, pu
 		log.Log.Fatalw("blobstoreConfig is invalid.", "blobstore-type", blobstoreConfig.BlobstoreType)
 		return nil, nil // satisfy compiler
 	}
+}
+
+func decorateBlobstore() {
+
 }
 
 func createBuildpackCacheSignURLHandler(blobstoreConfig config.BlobstoreConfig, publicEndpoint *url.URL, port int, secret string, resourceType string) (bitsgo.Blobstore, *bitsgo.SignResourceHandler) {
