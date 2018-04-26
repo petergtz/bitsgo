@@ -10,13 +10,12 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
+	"github.com/aws/aws-sdk-go/aws"
+	awss3 "github.com/aws/aws-sdk-go/service/s3"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
 	"github.com/petergtz/bitsgo"
-	"github.com/petergtz/bitsgo/blobstores/azure"
-	"github.com/petergtz/bitsgo/blobstores/gcp"
-	"github.com/petergtz/bitsgo/blobstores/openstack"
 	"github.com/petergtz/bitsgo/blobstores/s3"
 	"github.com/petergtz/bitsgo/config"
 	"github.com/petergtz/bitsgo/httputil"
@@ -26,10 +25,20 @@ var _ = Describe("Non-local blobstores", func() {
 
 	var (
 		filepath  string
-		blobstore blobstore
+		blobstore *s3.Blobstore
 	)
 
 	itCanPutAndGetAResourceThere := func() {
+		FIt("it does something", func() {
+			request, _ := blobstore.S3Client.GetObjectRequest(&awss3.GetObjectInput{
+				Bucket: aws.String("pego-test"),
+				Key:    aws.String("bla"),
+			})
+
+			signed, _ := blobstore.SignedURLFromX(request, "pego-test", "bla")
+			fmt.Println(signed)
+			Expect(signed).To(Equal("https://pego-test.storage.googleapis.com/bla?Expires=1524753676&GoogleAccessId=GOOG32XQCEC6R6RFHODZ&Signature=sVkrDF86uznpNfmF6450CLnZwzA%3D"))
+		})
 
 		It("can put and get a resource there", func() {
 			redirectLocation, e := blobstore.HeadOrRedirectAsGet(filepath)
@@ -161,6 +170,7 @@ var _ = Describe("Non-local blobstores", func() {
 		Expect(e).NotTo(HaveOccurred())
 
 		filepath = fmt.Sprintf("testfile-%v", time.Now())
+		filepath = "bla"
 	})
 
 	Context("S3", func() {
@@ -179,53 +189,53 @@ var _ = Describe("Non-local blobstores", func() {
 
 	})
 
-	Context("GCP", func() {
-		var gcpConfig config.GCPBlobstoreConfig
+	// Context("GCP", func() {
+	// 	var gcpConfig config.GCPBlobstoreConfig
 
-		BeforeEach(func() { Expect(yaml.Unmarshal(configFileContent, &gcpConfig)).To(Succeed()) })
-		JustBeforeEach(func() { blobstore = gcp.NewBlobstore(gcpConfig) })
+	// 	BeforeEach(func() { Expect(yaml.Unmarshal(configFileContent, &gcpConfig)).To(Succeed()) })
+	// 	JustBeforeEach(func() { blobstore = gcp.NewBlobstore(gcpConfig) })
 
-		itCanPutAndGetAResourceThere()
+	// 	itCanPutAndGetAResourceThere()
 
-		Context("With non-existing bucket", func() {
-			BeforeEach(func() { gcpConfig.Bucket += "non-existing" })
+	// 	Context("With non-existing bucket", func() {
+	// 		BeforeEach(func() { gcpConfig.Bucket += "non-existing" })
 
-			ItDoesNotReturnNotFoundError()
-		})
+	// 		ItDoesNotReturnNotFoundError()
+	// 	})
 
-	})
+	// })
 
-	Context("azure", func() {
-		var azureConfig config.AzureBlobstoreConfig
+	// Context("azure", func() {
+	// 	var azureConfig config.AzureBlobstoreConfig
 
-		BeforeEach(func() { Expect(yaml.Unmarshal(configFileContent, &azureConfig)).To(Succeed()) })
-		JustBeforeEach(func() { blobstore = azure.NewBlobstore(azureConfig) })
+	// 	BeforeEach(func() { Expect(yaml.Unmarshal(configFileContent, &azureConfig)).To(Succeed()) })
+	// 	JustBeforeEach(func() { blobstore = azure.NewBlobstore(azureConfig) })
 
-		itCanPutAndGetAResourceThere()
+	// 	itCanPutAndGetAResourceThere()
 
-		Context("With non-existing bucket", func() {
-			BeforeEach(func() { azureConfig.ContainerName += "non-existing" })
+	// 	Context("With non-existing bucket", func() {
+	// 		BeforeEach(func() { azureConfig.ContainerName += "non-existing" })
 
-			ItDoesNotReturnNotFoundError()
-		})
+	// 		ItDoesNotReturnNotFoundError()
+	// 	})
 
-	})
+	// })
 
-	Context("openstack", func() {
-		var openstackConfig config.OpenstackBlobstoreConfig
+	// Context("openstack", func() {
+	// 	var openstackConfig config.OpenstackBlobstoreConfig
 
-		BeforeEach(func() { Expect(yaml.Unmarshal(configFileContent, &openstackConfig)).To(Succeed()) })
-		JustBeforeEach(func() { blobstore = openstack.NewBlobstore(openstackConfig) })
+	// 	BeforeEach(func() { Expect(yaml.Unmarshal(configFileContent, &openstackConfig)).To(Succeed()) })
+	// 	JustBeforeEach(func() { blobstore = openstack.NewBlobstore(openstackConfig) })
 
-		itCanPutAndGetAResourceThere()
+	// 	itCanPutAndGetAResourceThere()
 
-		Context("With non-existing bucket", func() {
-			BeforeEach(func() { openstackConfig.ContainerName += "non-existing" })
+	// 	Context("With non-existing bucket", func() {
+	// 		BeforeEach(func() { openstackConfig.ContainerName += "non-existing" })
 
-			ItDoesNotReturnNotFoundError()
-		})
+	// 		ItDoesNotReturnNotFoundError()
+	// 	})
 
-	})
+	// })
 })
 
 func HaveBodyWithSubstring(substring string) types.GomegaMatcher {

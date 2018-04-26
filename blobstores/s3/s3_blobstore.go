@@ -1,6 +1,10 @@
 package s3
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
+	"fmt"
 	"io"
 	"strings"
 	"time"
@@ -13,22 +17,30 @@ import (
 	"github.com/petergtz/bitsgo/config"
 	"github.com/petergtz/bitsgo/logger"
 	"github.com/pkg/errors"
+	// v4signer "github.com/aws/aws-sdk-go/aws/signer/v4"
+	v2signer "github.com/aws/aws-sdk-go/private/signer/v2"
 )
 
 type Blobstore struct {
-	s3Client *s3.S3
-	bucket   string
+	s3Client        *s3.S3
+	S3Client        *s3.S3
+	bucket          string
+	accessKeyID     string
+	secretAccessKey string
 }
 
 func NewBlobstore(config config.S3BlobstoreConfig) *Blobstore {
 	validate.NotEmpty(config.AccessKeyID)
 	validate.NotEmpty(config.Bucket)
-	validate.NotEmpty(config.Region)
+	// validate.NotEmpty(config.Region)
 	validate.NotEmpty(config.SecretAccessKey)
 
 	return &Blobstore{
-		s3Client: newS3Client(config.Region, config.AccessKeyID, config.SecretAccessKey, config.Host),
-		bucket:   config.Bucket,
+		s3Client:        newS3Client(config.Region, config.AccessKeyID, config.SecretAccessKey, config.Host),
+		S3Client:        newS3Client(config.Region, config.AccessKeyID, config.SecretAccessKey, config.Host),
+		bucket:          config.Bucket,
+		accessKeyID:     config.AccessKeyID,
+		secretAccessKey: config.SecretAccessKey,
 	}
 }
 
@@ -91,11 +103,66 @@ func (blobstore *Blobstore) Put(path string, src io.ReadSeeker) error {
 	return nil
 }
 
+const timeFormat = "2006-01-02T15:04:05"
+
+func (blobstore *Blobstore) SignedURLFromX(req *request.Request, bucket, path string) (string, error) {
+	req.Build()
+
+	q := req.HTTPRequest.URL.Query()
+
+	q.Set("AWSAccessKeyId", blobstore.accessKeyID)
+	q.Set("Expires", fmt.Sprintf("%v", "1524753676"))
+	q.Set("SignatureVersion", "2")
+	q.Set("SignatureMethod", "HmacSHA256")
+	q.Set("Timestamp", time.Now().Format(timeFormat))
+	q.Set("Version", "2009-03-31")
+
+	req.HTTPRequest.URL.RawQuery = q.Encode()
+
+	signature := req.HTTPRequest.Method + "\n" +
+		req.HTTPRequest.URL.Host + "\n" +
+		req.HTTPRequest.URL.Path + "\n" +
+		req.HTTPRequest.URL.Query().Encode()
+
+	fmt.Println(signature)
+
+	hash := hmac.New(sha256.New, []byte(blobstore.secretAccessKey))
+	hash.Write([]byte(signature))
+
+	q.Set("Signature", base64.StdEncoding.EncodeToString(hash.Sum(nil)))
+	q.Set("GoogleAccessId", blobstore.accessKeyID)
+	q.Del("AWSAccessKeyId")
+	req.HTTPRequest.URL.RawQuery = q.Encode()
+
+	signed := req.HTTPRequest.URL.String()
+
+	return signed, nil
+}
+
 func signedURLFrom(req *request.Request, bucket, path string) (string, error) {
-	signedURL, e := req.Presign(time.Hour)
-	if e != nil {
-		return "", errors.Wrapf(e, "Bucket/Path %v/%v", bucket, path)
+	// signedURL2, _ := req.Presign(time.Hour)
+	req.Build()
+
+	fmt.Printf("XXX unsigned %+v\n", req.HTTPRequest.URL.String())
+	// fmt.Printf("XXX Original %v\n", signedURL2)
+	// req.NotHoist = false
+
+	// req.ExpireTime = time.Hour
+	// req.Sign()
+	v2signer.SignSDKRequest(req)
+	fmt.Printf("XXX V2 %v\n", req.HTTPRequest.URL.String())
+	// signedURL, e := req.Presign(time.Hour)
+	if req.Error != nil {
+		panic(req.Error)
 	}
+
+	signedURL := req.HTTPRequest.URL.String()
+	// if e != nil {
+	// 	return "", errors.Wrapf(e, "Bucket/Path %v/%v", bucket, path)
+	// }
+
+	signedURL = strings.Replace(signedURL, "AWSAccessKeyId", "GoogleAccessId", -1)
+	fmt.Printf("XXX %v\n", signedURL)
 	return signedURL, nil
 
 }
