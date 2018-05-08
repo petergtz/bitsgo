@@ -43,7 +43,6 @@ func (u *NullUpdater) NotifyUploadFailed(guid string, e error) error            
 type ResourceHandler struct {
 	blobstore        Blobstore
 	resourceType     string
-	metricsService   MetricsService
 	maxBodySizeLimit uint64
 	updater          Updater
 }
@@ -59,7 +58,6 @@ func NewResourceHandler(blobstore Blobstore, resourceType string, metricsService
 	return &ResourceHandler{
 		blobstore:        blobstore,
 		resourceType:     resourceType,
-		metricsService:   metricsService,
 		maxBodySizeLimit: maxBodySizeLimit,
 		updater:          &NullUpdater{},
 	}
@@ -69,7 +67,6 @@ func NewResourceHandlerWithUpdater(blobstore Blobstore, updater Updater, resourc
 	return &ResourceHandler{
 		blobstore:        blobstore,
 		resourceType:     resourceType,
-		metricsService:   metricsService,
 		maxBodySizeLimit: maxBodySizeLimit,
 		updater:          updater,
 	}
@@ -144,9 +141,7 @@ func (handler *ResourceHandler) AddOrReplace(responseWriter http.ResponseWriter,
 		return
 	}
 
-	startTime := time.Now()
 	e = handler.blobstore.Put(params["identifier"], bytes.NewReader(buffer))
-	handler.metricsService.SendTimingMetric(handler.resourceType+"-cp_to_blobstore-time", time.Since(startTime))
 
 	if e != nil {
 		logger.From(request).Infow("Failed to upload to blobstore.", "error", e)
