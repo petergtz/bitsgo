@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"reflect"
+	"time"
 
 	"github.com/petergtz/bitsgo"
 
@@ -12,6 +13,7 @@ import (
 
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 
 	. "github.com/onsi/ginkgo"
@@ -46,6 +48,31 @@ var _ = Describe("ResourceHandler", func() {
 				map[string]string{})
 
 			Expect(responseWriter.Code).To(Equal(http.StatusInsufficientStorage))
+		})
+
+		Context("async=true", func() {
+			FIt("upload asynchronously", func() {
+
+				When(blobstore.Put(AnyString(), anyReadSeeker())).Then(func(params []Param) ReturnValues {
+					time.Sleep(1 * time.Second)
+					return nil
+				})
+
+				req := newTestRequest("test-resource", "some-filename", "some body")
+				q, e := url.ParseQuery("async=true")
+				Expect(e).NotTo(HaveOccurred())
+				req.URL.RawQuery = q.Encode()
+				handler.AddOrReplace(responseWriter,
+					req,
+					map[string]string{})
+
+				updater.VerifyWasCalled(Never()).NotifyUploadFailed(AnyString(), anyError())
+				updater.VerifyWasCalled(Never()).NotifyUploadSucceeded(AnyString(), AnyString(), AnyString())
+
+				Expect(responseWriter.Code).To(Equal(http.StatusCreated))
+
+			})
+
 		})
 	})
 

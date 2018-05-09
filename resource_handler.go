@@ -147,8 +147,12 @@ func (handler *ResourceHandler) AddOrReplace(responseWriter http.ResponseWriter,
 		return
 	}
 
-	e = handler.uploadResource(tempFilename, request, params["identifier"], false)
-
+	if request.URL.Query().Get("async") == "true" {
+		go handler.uploadResource(tempFilename, request, params["identifier"], true)
+		e = nil
+	} else {
+		e = handler.uploadResource(tempFilename, request, params["identifier"], false)
+	}
 	writeResponseBasedOn("", e, responseWriter, request, http.StatusCreated, nil, &responseBody{Guid: params["identifier"], State: "READY", Type: "bits", CreatedAt: time.Now()}, "")
 }
 
