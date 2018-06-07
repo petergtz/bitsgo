@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -29,11 +28,11 @@ type AppStashHandler struct {
 	maximumSize      uint64
 }
 
-func NewAppStashHandler(blobstore NoRedirectBlobstore, maxBodySizeLimit uint64) *AppStashHandler {
-	return NewAppStashHandlerWithSizeThresholds(blobstore, maxBodySizeLimit, 0, math.MaxUint64)
-}
+// func NewAppStashHandler(blobstore NoRedirectBlobstore, maxBodySizeLimit uint64) *AppStashHandler {
+// 	return NewAppStashHandlerWithSizeThresholds(blobstore, maxBodySizeLimit, 0, math.MaxUint64)
+// }
 
-func NewAppStashHandlerWithSizeThresholds(blobstore NoRedirectBlobstore, maxBodySizeLimit uint64, minimumSize uint64, maximumSize uint64) *AppStashHandler {
+func NewAppStashHandler(blobstore NoRedirectBlobstore, maxBodySizeLimit uint64, minimumSize uint64, maximumSize uint64) *AppStashHandler {
 	return &AppStashHandler{
 		blobstore:        blobstore,
 		maxBodySizeLimit: maxBodySizeLimit,

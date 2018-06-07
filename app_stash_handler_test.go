@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -31,7 +32,7 @@ var _ = Describe("AppStash", func() {
 
 	BeforeEach(func() {
 		blobstore = inmemory.NewBlobstore()
-		appStashHandler = bitsgo.NewAppStashHandler(blobstore, 0)
+		appStashHandler = bitsgo.NewAppStashHandler(blobstore, 0, 0, math.MaxUint64)
 		responseWriter = httptest.NewRecorder()
 	})
 
@@ -47,7 +48,7 @@ var _ = Describe("AppStash", func() {
 			)
 
 			BeforeEach(func() {
-				appStashHandler = bitsgo.NewAppStashHandlerWithSizeThresholds(blobstore, 0, minimumSize, maximumSize)
+				appStashHandler = bitsgo.NewAppStashHandler(blobstore, 0, minimumSize, maximumSize)
 				Expect(blobstore.Put("shaA", strings.NewReader("cached content"))).To(Succeed())
 				Expect(blobstore.Put("shaB", strings.NewReader("another cached content"))).To(Succeed())
 				Expect(blobstore.Put("shaC", strings.NewReader("yet another cached content"))).To(Succeed())
@@ -259,7 +260,7 @@ var _ = Describe("AppStash", func() {
 
 			BeforeEach(func() {
 				blobstore = NewMockNoRedirectBlobstore()
-				appStashHandler = bitsgo.NewAppStashHandler(blobstore, 0)
+				appStashHandler = bitsgo.NewAppStashHandler(blobstore, 0, 15, 30)
 			})
 
 			Context("Error in Blobstore.Get", func() {
@@ -322,7 +323,7 @@ var _ = Describe("AppStash", func() {
 
 		Context("maximumSize and minimumSize provided", func() {
 			BeforeEach(func() {
-				appStashHandler = bitsgo.NewAppStashHandlerWithSizeThresholds(blobstore, 0, 15, 30)
+				appStashHandler = bitsgo.NewAppStashHandler(blobstore, 0, 15, 30)
 			})
 
 			It("only stores the file which is within range of thresholds", func() {
