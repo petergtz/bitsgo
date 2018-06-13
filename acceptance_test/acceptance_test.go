@@ -18,7 +18,7 @@ import (
 	"github.com/onsi/gomega"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
-	"github.com/petergtz/bitsgo/httputil"
+	"github.com/petergtz/bitsgo/internal/httputil"
 )
 
 func TestEndToEnd(t *testing.T) {
