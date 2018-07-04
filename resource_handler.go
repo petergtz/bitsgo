@@ -1,6 +1,7 @@
 package bitsgo
 
 import (
+	"archive/zip"
 	"bytes"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -9,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -49,6 +51,8 @@ type ResourceHandler struct {
 	metricsService   MetricsService
 	maxBodySizeLimit uint64
 	updater          Updater
+	minimumSize      uint64
+	maximumSize      uint64
 }
 
 type responseBody struct {
@@ -59,22 +63,35 @@ type responseBody struct {
 }
 
 func NewResourceHandler(blobstore Blobstore, resourceType string, metricsService MetricsService, maxBodySizeLimit uint64) *ResourceHandler {
-	return &ResourceHandler{
-		blobstore:        blobstore,
-		resourceType:     resourceType,
-		metricsService:   metricsService,
-		maxBodySizeLimit: maxBodySizeLimit,
-		updater:          &NullUpdater{},
-	}
+	return NewResourceHandlerWithUpdater(
+		blobstore,
+		&NullUpdater{},
+		resourceType,
+		metricsService,
+		maxBodySizeLimit,
+	)
 }
 
 func NewResourceHandlerWithUpdater(blobstore Blobstore, updater Updater, resourceType string, metricsService MetricsService, maxBodySizeLimit uint64) *ResourceHandler {
+	return NewResourceHandlerWithUpdaterAndSizeThresholds(
+		blobstore,
+		updater,
+		resourceType,
+		metricsService,
+		maxBodySizeLimit,
+		0, math.MaxUint64,
+	)
+}
+
+func NewResourceHandlerWithUpdaterAndSizeThresholds(blobstore Blobstore, updater Updater, resourceType string, metricsService MetricsService, maxBodySizeLimit uint64, minimumSize, maximumSize uint64) *ResourceHandler {
 	return &ResourceHandler{
 		blobstore:        blobstore,
 		resourceType:     resourceType,
 		metricsService:   metricsService,
 		maxBodySizeLimit: maxBodySizeLimit,
 		updater:          updater,
+		maximumSize:      maximumSize,
+		minimumSize:      minimumSize,
 	}
 }
 
@@ -123,9 +140,9 @@ func (handler *ResourceHandler) AddOrReplace(responseWriter http.ResponseWriter,
 	if !HandleBodySizeLimits(responseWriter, request, handler.maxBodySizeLimit) {
 		return
 	}
-	file, _, e := request.FormFile(handler.resourceType)
+	file, fi, e := request.FormFile(handler.resourceType)
 	if e == http.ErrMissingFile {
-		file, _, e = request.FormFile("bits")
+		file, fi, e = request.FormFile("bits")
 	}
 	if e == http.ErrMissingFile {
 		badRequest(responseWriter, request, "Could not retrieve form parameter '%s' or 'bits", handler.resourceType)
@@ -137,7 +154,41 @@ func (handler *ResourceHandler) AddOrReplace(responseWriter http.ResponseWriter,
 	}
 	defer file.Close()
 
-	tempFilename, e := CreateTempFileWithContent(file)
+	var bundlesPayload []Fingerprint
+	resources, _, e := request.FormFile("resources")
+	if e != nil && e != http.ErrMissingFile {
+		internalServerError(responseWriter, request, e)
+		return
+	}
+	if e != http.ErrMissingFile {
+		body, e := ioutil.ReadAll(resources)
+		if e != nil {
+			internalServerError(responseWriter, request, e)
+			return
+		}
+
+		e = json.Unmarshal(body, &bundlesPayload)
+		if e != nil {
+			logger.From(request).Infow("Invalid resources", "resources", string(body))
+			responseWriter.WriteHeader(http.StatusUnprocessableEntity)
+			fprintDescriptionAsJSON(responseWriter, "Invalid resources %s", body)
+			return
+		}
+		if isMissing, key := anyKeyMissingIn(bundlesPayload); isMissing {
+			logger.From(request).Infow("Invalid resources. Key missing", "resources", string(body), "missing-key", key)
+			responseWriter.WriteHeader(http.StatusUnprocessableEntity)
+			fprintDescriptionAsJSON(responseWriter, "The request is semantically invalid: key `%v` missing or empty", key)
+			return
+		}
+	}
+
+	zipReader, e := zip.NewReader(file, fi.Size)
+	if e != nil {
+		internalServerError(responseWriter, request, e)
+		return
+	}
+
+	tempFilename, e := CreateTempZipFileFrom(bundlesPayload, zipReader, handler.minimumSize, handler.maximumSize, handler.blobstore)
 	if e != nil {
 		internalServerError(responseWriter, request, e)
 		return
@@ -155,21 +206,6 @@ func (handler *ResourceHandler) AddOrReplace(responseWriter http.ResponseWriter,
 		e = handler.uploadResource(tempFilename, request, params["identifier"], false)
 		writeResponseBasedOn("", e, responseWriter, request, http.StatusCreated, nil, &responseBody{Guid: params["identifier"], State: "READY", Type: "bits", CreatedAt: time.Now()}, "")
 	}
-}
-
-func CreateTempFileWithContent(reader io.Reader) (string, error) {
-	uploadedFile, e := ioutil.TempFile("", "bits")
-	if e != nil {
-		return "", errors.WithStack(e)
-	}
-	_, e = io.Copy(uploadedFile, reader)
-	if e != nil {
-		uploadedFile.Close()
-		return "", errors.WithStack(e)
-	}
-	uploadedFile.Close()
-
-	return uploadedFile.Name(), nil
 }
 
 func (handler *ResourceHandler) uploadResource(tempFilename string, request *http.Request, identifier string, async bool) error {

@@ -32,6 +32,8 @@ type Blobstore interface {
 	// Implementers must return *NotFoundError when the resource cannot be found
 	GetOrRedirect(path string) (body io.ReadCloser, redirectLocation string, err error)
 
+	Get(path string) (body io.ReadCloser, err error)
+
 	// Implementers must return *NoSpaceLeftError when there's no space left on device.
 	Put(path string, src io.ReadSeeker) error
 	Copy(src, dest string) error

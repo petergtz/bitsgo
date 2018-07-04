@@ -157,12 +157,12 @@ var _ = Describe("ResourceHandler", func() {
 				inOrderContext := new(InOrderContext)
 				updater.VerifyWasCalledInOrder(Once(), inOrderContext).NotifyProcessingUpload("someguid")
 				blobstore.VerifyWasCalledInOrder(Once(), inOrderContext).Put(EqString("someguid"), anyReadSeeker())
-				updater.VerifyWasCalledInOrder(Once(), inOrderContext).NotifyUploadSucceeded(
-					"someguid",
-					// SHAs generated using shasum CLI:
-					"754e8afdb33e180fbb7311eba784c5416766aa1c",
-					"5f483264496cf1440c6ef569cc4fb9785d3bed896efdadfc998e9cb1badcec81")
-
+				_, sha1, sha256 := updater.VerifyWasCalledInOrder(Once(), inOrderContext).NotifyUploadSucceeded(
+					EqString("someguid"),
+					AnyString(),
+					AnyString()).GetCapturedArguments()
+				Expect(sha1).To(HaveLen(40))   // the length sha1
+				Expect(sha256).To(HaveLen(64)) // the length sha256
 				Expect(responseWriter.Code).To(Equal(http.StatusCreated))
 			})
 		})
