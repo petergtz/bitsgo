@@ -52,6 +52,10 @@ Then run it:
 ```
 bitsgo --config my/path/to/config.yml
 ```
+or use the standalone config for run it locally
+```
+./scripts/build-and-run standalone/config.yml
+```
 
 To run tests:
 
