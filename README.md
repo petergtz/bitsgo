@@ -1,3 +1,7 @@
+---------------------------
+> **Note:** This repository has moved to https://github.com/cloudfoundry-incubator/bits-service.
+---------------------------
+
 # Bits Service
  <img src="docs/bits_logo_horizontal.svg" width="500" align="middle">
 
